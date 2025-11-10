@@ -1,0 +1,47 @@
+# 构建产物
+build/
+build_test/
+*.zip
+*.md5
+
+# 配置文件（包含敏感信息）
+config.env
+
+# Jenkins 工作空间
+.jenkins/
+
+# 日志文件
+*.log
+
+# 临时文件
+*.tmp
+*.swp
+*~
+
+# macOS
+.DS_Store
+
+# Linux
+*~
+
+# 编辑器
+.vscode/
+.idea/
+*.sublime-*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+
+# Node
+node_modules/
+npm-debug.log*
+
+# build
+build_test/
+build_test_mac/

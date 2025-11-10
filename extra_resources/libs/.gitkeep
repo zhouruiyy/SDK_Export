@@ -1,0 +1,8 @@
+# 此目录用于存放额外的库文件
+# 
+# 将你需要添加的 .so, .a 等文件放在这里
+#
+# 示例：
+#   extra_resources/libs/libextra_codec.so
+#   extra_resources/libs/libcustom_filter.so
+

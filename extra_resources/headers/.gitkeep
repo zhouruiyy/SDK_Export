@@ -1,0 +1,9 @@
+# 此目录用于存放额外的头文件
+#
+# 将你需要添加的 .h, .hpp 等文件放在这里
+# 可以创建子目录来组织文件
+#
+# 示例：
+#   extra_resources/headers/extra_codec.h
+#   extra_resources/headers/filters/custom_filter.h
+

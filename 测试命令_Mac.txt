@@ -1,0 +1,150 @@
+===========================================
+Mac SDK 测试命令
+===========================================
+
+📦 测试 SDK: Agora_Native_SDK_for_Mac_rel.v4.4.30_25321_FULL_20250820_1052_846534.zip
+🔗 SDK URL: http://10.80.1.174:8090/agora_sdk/4.4.30/nightly_build/2025-08-20/mac/full/Agora_Native_SDK_for_Mac_rel.v4.4.30_25321_FULL_20250820_1052_846534.zip
+
+===========================================
+方式一：完整测试（推荐）
+===========================================
+
+cd /Volumes/ZR/Agora/Jenkins
+
+# 清理旧的构建
+rm -rf build_test_mac
+
+# 运行测试
+./scripts/local_test_mac.sh \
+  "http://10.80.1.174:8090/agora_sdk/4.4.30/nightly_build/2025-08-20/mac/full/Agora_Native_SDK_for_Mac_rel.v4.4.30_25321_FULL_20250820_1052_846534.zip" \
+  "4.4.30"
+
+===========================================
+方式二：分步测试（用于调试）
+===========================================
+
+cd /Volumes/ZR/Agora/Jenkins
+
+# 1. 清理环境
+rm -rf build_test_mac
+mkdir -p build_test_mac/original_sdk
+
+# 2. 下载 SDK
+curl -L -o build_test_mac/original_sdk.zip \
+  "http://10.80.1.174:8090/agora_sdk/4.4.30/nightly_build/2025-08-20/mac/full/Agora_Native_SDK_for_Mac_rel.v4.4.30_25321_FULL_20250820_1052_846534.zip"
+
+# 3. 解压 SDK
+unzip -q build_test_mac/original_sdk.zip -d build_test_mac/original_sdk
+
+# 4. 查看目录结构
+ls -lh build_test_mac/original_sdk/
+find build_test_mac/original_sdk -name "libs" -type d
+
+# 5. 处理 SDK
+bash scripts/process_sdk_mac.sh \
+  build_test_mac/original_sdk \
+  extra_resources \
+  scripts/framework_to_dylib.py
+
+# 6. 检查生成的 agora_sdk 目录
+ls -lh build_test_mac/original_sdk/agora_sdk/
+echo "dylib 文件数量:"
+ls -1 build_test_mac/original_sdk/agora_sdk/*.dylib | wc -l
+
+# 7. 打包 SDK
+bash scripts/package_sdk_mac.sh \
+  build_test_mac/original_sdk \
+  Agora_Native_SDK_for_Mac_rel.v4.4.30_25321_FULL_20250820_1052_846534.zip
+
+# 8. 查看最终结果
+ls -lh build_test_mac/original_sdk/*.zip*
+
+===========================================
+验证结果
+===========================================
+
+# 1. 检查生成的文件名
+ls -lh build_test_mac/agora_sdk_mac_*.zip
+
+# 预期文件名：
+# agora_sdk_mac_v4.4.30_25321_FULL_20250820_1052_846534.zip
+
+# 2. 检查 ZIP 内容
+unzip -l build_test_mac/agora_sdk_mac_v4.4.30_25321_FULL_20250820_1052_846534.zip | head -30
+
+# 3. 验证 dylib 文件
+echo "=== 所有 dylib 文件 ==="
+unzip -l build_test_mac/agora_sdk_mac_v4.4.30_25321_FULL_20250820_1052_846534.zip | grep "\.dylib"
+
+# 4. 验证 RTM 库文件
+echo "=== RTM 相关文件 ==="
+unzip -l build_test_mac/agora_sdk_mac_v4.4.30_25321_FULL_20250820_1052_846534.zip | grep -E '(rtm|uap_aed)'
+
+# 5. 查看 MD5
+cat build_test_mac/agora_sdk_mac_v4.4.30_25321_FULL_20250820_1052_846534.zip.md5
+
+# 6. 查看测试报告
+cat build_test_mac/test_report.txt
+
+===========================================
+准备 RTM 库文件
+===========================================
+
+# 如果还没有准备 Mac 的 RTM 库文件，执行以下命令：
+
+cd /Volumes/ZR/Agora/Jenkins/extra_resources
+
+# 创建 libs_mac 目录
+mkdir -p libs_mac
+
+# 复制 Mac 的 dylib 文件（需要替换为实际路径）
+# cp /path/to/libagora_rtm_sdk_c.dylib libs_mac/
+# cp /path/to/libAgoraRtmKit.dylib libs_mac/
+# cp /path/to/libuap_aed.dylib libs_mac/
+
+# 验证文件
+ls -lh libs_mac/
+
+===========================================
+文件名格式说明
+===========================================
+
+原始文件名：
+  Agora_Native_SDK_for_Mac_rel.v4.4.30_25321_FULL_20250820_1052_846534.zip
+
+提取版本部分（v 后面到 .zip 前）：
+  v4.4.30_25321_FULL_20250820_1052_846534
+
+生成新文件名：
+  agora_sdk_mac_v4.4.30_25321_FULL_20250820_1052_846534.zip
+
+规则：
+  agora_sdk_mac_{v后面的所有字符}.zip
+
+===========================================
+常见问题
+===========================================
+
+问题1: 找不到 libs 目录
+解决: 检查解压后的目录结构
+  find build_test_mac/original_sdk -name "libs" -type d
+
+问题2: Python 脚本失败
+解决: 
+  - 检查是否安装了 python3
+  - 检查脚本路径是否正确
+  python3 --version
+
+问题3: 找不到 RTM dylib 文件
+解决: 
+  - 检查 extra_resources/libs_mac/ 目录
+  - 确保 3 个 dylib 文件都存在
+  ls -lh extra_resources/libs_mac/
+
+问题4: 文件名格式不对
+解决: 
+  - 检查原始文件名是否包含 .v
+  - 查看 scripts/package_sdk_mac.sh 中的 generate_mac_sdk_name 函数
+
+===========================================
+
