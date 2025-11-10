@@ -8,6 +8,9 @@
 
 set -e  # 遇到错误立即退出
 
+# 获取脚本所在目录
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # 参数
 SDK_ROOT_DIR=$1          # SDK 根目录（包含 agora_sdk 的目录）
 ORIGINAL_SDK_NAME=$2     # 原始 SDK 的 zip 文件名
@@ -52,8 +55,27 @@ generate_linux_sdk_name() {
     # 格式通常是 ubuntu + 数字 + _ + 数字 + _ + 数字
     version_part=$(echo "$version_part" | sed -E 's/_ubuntu[0-9]+_[0-9]+_[0-9]+//g')
     
-    # 生成新文件名（不包含 _external/_internal 后缀，添加 -3a 后缀）
-    local new_name="agora_rtc_sdk_x86_64-linux-gnu-${version_part}-3a.zip"
+    # 获取 rtm_c 库的创建时间
+    local rtm_c_file="${SCRIPT_DIR}/../extra_resources/libs/libagora_rtm_sdk_c.so"
+    local rtm_timestamp=""
+    
+    if [ -f "${rtm_c_file}" ]; then
+        # 获取文件修改时间并格式化为 YYYYMMDD_HHMM
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            # macOS
+            rtm_timestamp=$(stat -f "%Sm" -t "%Y%m%d_%H%M" "${rtm_c_file}")
+        else
+            # Linux
+            rtm_timestamp=$(date -r "${rtm_c_file}" +"%Y%m%d_%H%M")
+        fi
+        echo "  ℹ RTM_C 库时间: ${rtm_timestamp}" >&2
+    else
+        echo "  ⚠ 警告: 未找到 rtm_c 库文件，使用当前时间" >&2
+        rtm_timestamp=$(date +"%Y%m%d_%H%M")
+    fi
+    
+    # 生成新文件名（添加 rtm_c 时间戳和 -3a 后缀）
+    local new_name="agora_rtc_sdk_x86_64-linux-gnu-${version_part}_${rtm_timestamp}-3a.zip"
     
     echo "  ℹ 原始文件名: ${original_name}" >&2
     echo "  ℹ 提取的版本部分: ${version_part}" >&2

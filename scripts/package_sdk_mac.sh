@@ -8,6 +8,9 @@
 
 set -e  # 遇到错误立即退出
 
+# 获取脚本所在目录
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # 参数
 ORIGINAL_SDK_DIR=$1      # 处理后的 SDK 根目录
 ORIGINAL_SDK_NAME=$2     # 原始 SDK 文件名（例如：Agora_Native_SDK_for_Mac_rel.v4.4.30_25321_FULL_20250820_1052_846534.zip）
@@ -63,8 +66,27 @@ generate_mac_sdk_name() {
         return 1
     fi
     
-    # 生成新文件名：agora_sdk_mac_{version_part}-3a.zip
-    local new_name="agora_sdk_mac_${version_part}-3a.zip"
+    # 获取 rtm_c 库的创建时间
+    local rtm_c_file="${SCRIPT_DIR}/../extra_resources/libs_mac/libagora_rtm_sdk_c.dylib"
+    local rtm_timestamp=""
+    
+    if [ -f "${rtm_c_file}" ]; then
+        # 获取文件修改时间并格式化为 YYYYMMDD_HHMM
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            # macOS
+            rtm_timestamp=$(stat -f "%Sm" -t "%Y%m%d_%H%M" "${rtm_c_file}")
+        else
+            # Linux
+            rtm_timestamp=$(date -r "${rtm_c_file}" +"%Y%m%d_%H%M")
+        fi
+        echo "RTM_C 库时间: ${rtm_timestamp}" >&2
+    else
+        echo "⚠ 警告: 未找到 rtm_c 库文件，使用当前时间" >&2
+        rtm_timestamp=$(date +"%Y%m%d_%H%M")
+    fi
+    
+    # 生成新文件名：agora_sdk_mac_{version_part}_{rtm_timestamp}-3a.zip
+    local new_name="agora_sdk_mac_${version_part}_${rtm_timestamp}-3a.zip"
     
     # 将调试信息输出到 stderr，这样不会影响返回值
     echo "原始文件名: ${original_name}" >&2
