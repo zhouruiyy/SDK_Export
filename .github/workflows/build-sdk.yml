@@ -1,0 +1,217 @@
+name: Build Enhanced SDK
+
+on:
+  workflow_dispatch:
+    inputs:
+      sdk_url:
+        description: '原始 SDK 下载链接'
+        required: true
+        type: string
+      sdk_version:
+        description: 'SDK 版本号（如: 4.4.32.150）'
+        required: true
+        type: string
+      platform:
+        description: '目标平台'
+        required: true
+        type: choice
+        options:
+          - linux
+          - mac
+
+jobs:
+  build:
+    runs-on: ${{ github.event.inputs.platform == 'mac' && 'macos-latest' || 'ubuntu-latest' }}
+    
+    steps:
+      - name: Checkout 代码
+        uses: actions/checkout@v3
+      
+      - name: 设置 Python（Mac 需要）
+        if: github.event.inputs.platform == 'mac'
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: 准备环境
+        run: |
+          echo "=========================================="
+          echo "Agora SDK 增强打包"
+          echo "=========================================="
+          echo "SDK URL: ${{ github.event.inputs.sdk_url }}"
+          echo "SDK Version: ${{ github.event.inputs.sdk_version }}"
+          echo "Platform: ${{ github.event.inputs.platform }}"
+          echo "=========================================="
+          
+          # 创建工作目录
+          mkdir -p build/original_sdk
+          
+          # 检查额外资源
+          echo "检查额外资源:"
+          ls -la extra_resources/
+      
+      - name: 下载原始 SDK
+        run: |
+          echo "下载 SDK..."
+          cd build
+          curl -L -o original_sdk.zip "${{ github.event.inputs.sdk_url }}"
+          
+          if [ ! -f original_sdk.zip ]; then
+            echo "❌ 下载失败"
+            exit 1
+          fi
+          
+          echo "✓ 下载完成"
+          ls -lh original_sdk.zip
+      
+      - name: 解压原始 SDK
+        run: |
+          echo "解压 SDK..."
+          cd build
+          unzip -q original_sdk.zip -d original_sdk
+          
+          echo "✓ 解压完成"
+          ls -lh original_sdk/
+      
+      - name: 处理 SDK (Linux)
+        if: github.event.inputs.platform == 'linux'
+        run: |
+          echo "处理 Linux SDK..."
+          ./scripts/process_sdk.sh \
+            "${GITHUB_WORKSPACE}/build/original_sdk" \
+            "${GITHUB_WORKSPACE}/extra_resources"
+      
+      - name: 处理 SDK (Mac)
+        if: github.event.inputs.platform == 'mac'
+        run: |
+          echo "处理 Mac SDK..."
+          ./scripts/process_sdk_mac.sh \
+            "${GITHUB_WORKSPACE}/build/original_sdk" \
+            "${GITHUB_WORKSPACE}/extra_resources" \
+            "${GITHUB_WORKSPACE}/scripts/framework_to_dylib.py"
+      
+      - name: 打包 SDK
+        run: |
+          echo "打包 SDK..."
+          ORIGINAL_SDK_NAME=$(basename "${{ github.event.inputs.sdk_url }}")
+          echo "原始 SDK 名称: ${ORIGINAL_SDK_NAME}"
+          
+          if [ "${{ github.event.inputs.platform }}" = "linux" ]; then
+            ./scripts/package_sdk.sh \
+              "${GITHUB_WORKSPACE}/build/original_sdk" \
+              "${ORIGINAL_SDK_NAME}"
+          else
+            ./scripts/package_sdk_mac.sh \
+              "${GITHUB_WORKSPACE}/build/original_sdk" \
+              "${ORIGINAL_SDK_NAME}"
+          fi
+          
+          # 移动生成的文件
+          if [ "${{ github.event.inputs.platform }}" = "linux" ]; then
+            mv ${GITHUB_WORKSPACE}/build/original_sdk/agora_rtc_sdk_*.zip* ${GITHUB_WORKSPACE}/build/ 2>/dev/null || true
+          else
+            mv ${GITHUB_WORKSPACE}/build/original_sdk/agora_sdk_mac_*.zip* ${GITHUB_WORKSPACE}/build/ 2>/dev/null || true
+          fi
+          
+          echo "✓ 打包完成"
+          echo "生成的文件:"
+          ls -lh ${GITHUB_WORKSPACE}/build/*.zip*
+      
+      - name: 生成构建报告
+        run: |
+          cd build
+          
+          # 查找生成的 ZIP 文件
+          if [ "${{ github.event.inputs.platform }}" = "linux" ]; then
+            NEW_SDK_FILE=$(ls agora_rtc_sdk_*.zip 2>/dev/null | head -1)
+          else
+            NEW_SDK_FILE=$(ls agora_sdk_mac_*.zip 2>/dev/null | head -1)
+          fi
+          
+          if [ -z "${NEW_SDK_FILE}" ]; then
+            echo "❌ 未找到生成的 SDK 文件"
+            exit 1
+          fi
+          
+          # 读取 MD5
+          MD5_VALUE=""
+          if [ -f "${NEW_SDK_FILE}.md5" ]; then
+            MD5_VALUE=$(cat "${NEW_SDK_FILE}.md5" | cut -d' ' -f1)
+          fi
+          
+          # 生成报告
+          cat > build_report.txt <<EOF
+          ==========================================
+          Agora SDK 增强版本构建报告
+          ==========================================
+          构建时间: $(date '+%Y-%m-%d %H:%M:%S')
+          GitHub Run: ${{ github.run_number }}
+          Workflow: ${{ github.workflow }}
+          
+          SDK 信息:
+          - 版本: ${{ github.event.inputs.sdk_version }}
+          - 平台: ${{ github.event.inputs.platform }}
+          - 原始 SDK URL: ${{ github.event.inputs.sdk_url }}
+          
+          生成文件:
+          - 文件名: ${NEW_SDK_FILE}
+          - 文件大小: $(du -h ${NEW_SDK_FILE} | cut -f1)
+          - MD5: ${MD5_VALUE}
+          
+          增强内容:
+          EOF
+          
+          # 根据平台添加内容
+          if [ "${{ github.event.inputs.platform }}" = "linux" ]; then
+            cat >> build_report.txt <<EOF
+          - 删除文件:
+            * libagora_mcc_ysd_extension.so
+            * libagora_stt_ag_extension.so
+            * libagora_stt_ms_extension.so
+          - 添加 RTM SDK 库文件:
+            * libagora_rtm_sdk_c.so
+            * libagora_rtm_sdk.so
+            * libagora_uap_aed.so
+          - 添加 RTM SDK 头文件目录
+          - 添加 VAD 头文件
+          - 目录重命名: sdk -> agora_sdk
+          EOF
+          else
+            cat >> build_report.txt <<EOF
+          - xcframework 转换为 dylib
+          - 添加 RTM SDK 库文件:
+            * libagora_rtm_sdk_c.dylib
+            * libAgoraRtmKit.dylib
+            * libuap_aed.dylib
+          - 打包为 agora_sdk 目录
+          EOF
+          fi
+          
+          cat >> build_report.txt <<EOF
+          
+          ==========================================
+          EOF
+          
+          cat build_report.txt
+      
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v3
+        with:
+          name: sdk-${{ github.event.inputs.platform }}-${{ github.event.inputs.sdk_version }}
+          path: |
+            build/*.zip
+            build/*.md5
+            build/build_report.txt
+          retention-days: 30
+      
+      - name: 构建总结
+        run: |
+          echo "=========================================="
+          echo "✅ SDK 增强打包成功！"
+          echo "=========================================="
+          echo "平台: ${{ github.event.inputs.platform }}"
+          echo "版本: ${{ github.event.inputs.sdk_version }}"
+          echo ""
+          echo "📦 构建产物已上传，可在 Actions 页面下载"
+          echo "=========================================="
+
