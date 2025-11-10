@@ -194,13 +194,22 @@ jobs:
           
           cat build_report.txt
       
+      - name: 清理临时文件
+        run: |
+          cd build
+          # 删除原始下载的 SDK
+          rm -f original_sdk.zip
+          
+          echo "最终要上传的文件:"
+          ls -lh *.zip *.md5 build_report.txt 2>/dev/null || true
+      
       - name: 上传构建产物
         uses: actions/upload-artifact@v4
         with:
           name: sdk-${{ github.event.inputs.platform }}-${{ github.event.inputs.sdk_version }}
           path: |
-            build/*.zip
-            build/*.md5
+            build/agora_*.zip
+            build/agora_*.md5
             build/build_report.txt
           retention-days: 30
       
