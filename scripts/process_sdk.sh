@@ -77,7 +77,7 @@ if [ -d "${EXTRA_LIBS_DIR}" ]; then
     for so_file in "${SO_FILES[@]}"; do
         if [ -f "${EXTRA_LIBS_DIR}/${so_file}" ]; then
             echo "  ✓ 添加 ${so_file}"
-            cp "${EXTRA_LIBS_DIR}/${so_file}" "${SDK_DIR}/"
+            cp -p "${EXTRA_LIBS_DIR}/${so_file}" "${SDK_DIR}/"
         else
             echo "  ⚠ 警告: 未找到 ${so_file}"
         fi
@@ -88,7 +88,7 @@ if [ -d "${EXTRA_LIBS_DIR}" ]; then
         filename=$(basename "$so_file")
         if [[ ! " ${SO_FILES[@]} " =~ " ${filename} " ]]; then
             echo "  ✓ 添加额外的库: ${filename}"
-            cp "$so_file" "${SDK_DIR}/"
+            cp -p "$so_file" "${SDK_DIR}/"
         fi
     done
 else

@@ -95,7 +95,7 @@ if [ -d "${EXTRA_LIBS_DIR}" ]; then
     for dylib_file in "${DYLIB_FILES[@]}"; do
         if [ -f "${EXTRA_LIBS_DIR}/${dylib_file}" ]; then
             echo "  ✓ 添加 ${dylib_file}"
-            cp "${EXTRA_LIBS_DIR}/${dylib_file}" "${AGORA_SDK_DIR}/"
+            cp -p "${EXTRA_LIBS_DIR}/${dylib_file}" "${AGORA_SDK_DIR}/"
         else
             echo "  ⚠ 警告: 未找到 ${dylib_file}"
         fi
@@ -106,7 +106,7 @@ if [ -d "${EXTRA_LIBS_DIR}" ]; then
         filename=$(basename "$dylib_file")
         if [[ ! " ${DYLIB_FILES[@]} " =~ " ${filename} " ]]; then
             echo "  ✓ 添加额外的库: ${filename}"
-            cp "$dylib_file" "${AGORA_SDK_DIR}/"
+            cp -p "$dylib_file" "${AGORA_SDK_DIR}/"
         fi
     done
 else
