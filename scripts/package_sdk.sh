@@ -55,23 +55,33 @@ generate_linux_sdk_name() {
     # 格式通常是 ubuntu + 数字 + _ + 数字 + _ + 数字
     version_part=$(echo "$version_part" | sed -E 's/_ubuntu[0-9]+_[0-9]+_[0-9]+//g')
     
-    # 获取 rtm_c 库的创建时间
-    local rtm_c_file="${SCRIPT_DIR}/../extra_resources/libs/libagora_rtm_sdk_c.so"
+    # 获取 rtm_c 库的时间戳（从配置文件读取）
+    local rtm_version_file="${SCRIPT_DIR}/../extra_resources/rtm_version.txt"
     local rtm_timestamp=""
     
-    if [ -f "${rtm_c_file}" ]; then
-        # 获取文件修改时间并格式化为 YYYYMMDD_HHMM
-        if [[ "$OSTYPE" == "darwin"* ]]; then
-            # macOS
-            rtm_timestamp=$(stat -f "%Sm" -t "%Y%m%d_%H%M" "${rtm_c_file}")
+    if [ -f "${rtm_version_file}" ]; then
+        # 从配置文件读取时间戳
+        rtm_timestamp=$(grep "^RTM_TIMESTAMP=" "${rtm_version_file}" | cut -d'=' -f2)
+        if [ -n "${rtm_timestamp}" ]; then
+            echo "  ℹ RTM 库时间戳 (从配置文件): ${rtm_timestamp}" >&2
         else
-            # Linux
-            rtm_timestamp=$(date -r "${rtm_c_file}" +"%Y%m%d_%H%M")
+            echo "  ⚠ 警告: 配置文件中未找到时间戳，使用当前时间" >&2
+            rtm_timestamp=$(date +"%Y%m%d_%H%M")
         fi
-        echo "  ℹ RTM_C 库时间: ${rtm_timestamp}" >&2
     else
-        echo "  ⚠ 警告: 未找到 rtm_c 库文件，使用当前时间" >&2
-        rtm_timestamp=$(date +"%Y%m%d_%H%M")
+        # 降级：尝试从文件修改时间获取
+        local rtm_c_file="${SCRIPT_DIR}/../extra_resources/libs/libagora_rtm_sdk_c.so"
+        if [ -f "${rtm_c_file}" ]; then
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                rtm_timestamp=$(stat -f "%Sm" -t "%Y%m%d_%H%M" "${rtm_c_file}")
+            else
+                rtm_timestamp=$(date -r "${rtm_c_file}" +"%Y%m%d_%H%M")
+            fi
+            echo "  ℹ RTM 库时间戳 (从文件): ${rtm_timestamp}" >&2
+        else
+            echo "  ⚠ 警告: 未找到配置文件和库文件，使用当前时间" >&2
+            rtm_timestamp=$(date +"%Y%m%d_%H%M")
+        fi
     fi
     
     # 生成新文件名（添加 rtm_c 时间戳和 -3a 后缀）

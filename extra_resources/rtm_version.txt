@@ -1,0 +1,6 @@
+# RTM SDK 版本信息
+# 格式: YYYYMMDD_HHMM
+# 更新此文件时请同时更新 RTM SDK 库文件
+
+RTM_TIMESTAMP=20251021_1427
+
